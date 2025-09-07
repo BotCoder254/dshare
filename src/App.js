@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Layouts
 import MainLayout from './layouts/MainLayout';
@@ -17,6 +18,9 @@ const GuestLogin = lazy(() => import('./pages/GuestLogin'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const CreatePoll = lazy(() => import('./pages/CreatePoll'));
 const PollDetail = lazy(() => import('./pages/PollDetail'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const DiscoverPage = lazy(() => import('./pages/DiscoverPage'));
+const ResultsPage = lazy(() => import('./pages/ResultsPage'));
 // Add more lazy-loaded pages here
 
 // Create Query Client
@@ -40,24 +44,27 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
-          <Suspense fallback={<LoadingFallback />}>
+        <NotificationProvider>
+          <Router>
+            <Suspense fallback={<LoadingFallback />}>
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/guest-login" element={<GuestLogin />} />
+              <Route path="/discover" element={<MainLayout><DiscoverPage /></MainLayout>} />
               
               {/* Protected Routes */}
               <Route element={<PrivateRoute />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/create" element={<CreatePoll />} />
                 <Route path="/my-polls" element={<div>My Polls Page</div>} />
-                <Route path="/results" element={<div>Results Page</div>} />
+                <Route path="/results" element={<ResultsPage />} />
                 <Route path="/profile" element={<div>Profile Page</div>} />
                 <Route path="/settings" element={<div>Settings Page</div>} />
                 <Route path="/polls/:id" element={<PollDetail />} />
+                <Route path="/notifications" element={<Notifications />} />
               </Route>
               
               {/* Fallback for undefined routes */}
@@ -78,6 +85,7 @@ function App() {
             </Routes>
           </Suspense>
         </Router>
+        </NotificationProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FaSun, FaMoon, FaBars, FaTimes, FaUserCircle, FaPoll, FaSignOutAlt, FaGithub, 
   FaHome, FaPlus, FaList, FaChartBar, FaUser, FaCog, FaChevronLeft, FaChevronRight, 
-  FaThLarge, FaHistory, FaTrophy, FaInfoCircle, FaQuestionCircle, FaBell } from 'react-icons/fa';
+  FaThLarge, FaHistory, FaTrophy, FaInfoCircle, FaQuestionCircle, FaBell, FaSearch } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import { logout } from '../services/auth.service';
 import { useQuery } from '@tanstack/react-query';
 import { getUserPolls } from '../services/poll.service';
+import NotificationBell from '../components/NotificationBell';
 
 const MainLayout = ({ children }) => {
   const [darkMode, setDarkMode] = useState(false);
@@ -108,43 +110,59 @@ const MainLayout = ({ children }) => {
 
               {/* User menu or Auth buttons */}
               {isAuthenticated ? (
-                <div className="relative" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center space-x-1 focus:outline-none"
-                  >
-                    <span>{user?.name}</span>
-                    <FaUserCircle size={24} className="text-mpesa-green" />
-                  </button>
+                <div className="flex items-center space-x-4">
+                  {/* Notification Bell */}
+                  <NotificationBell />
                   
-                  {/* User dropdown */}
-                  {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-dark-bg-secondary rounded-md shadow-lg py-1 z-50">
-                      <Link
-                        to="/dashboard"
-                        className="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-dark-bg-primary"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        Dashboard
-                      </Link>
-                      <Link
-                        to="/profile"
-                        className="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-dark-bg-primary"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        Profile
-                      </Link>
-                      <button
-                        onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-dark-bg-primary"
-                      >
-                        <div className="flex items-center">
-                          <FaSignOutAlt className="mr-2" />
-                          Logout
-                        </div>
-                      </button>
-                    </div>
-                  )}
+                  {/* User Menu */}
+                  <div className="relative" onClick={(e) => e.stopPropagation()} id="user-menu-container">
+                    <button
+                      onClick={() => setUserMenuOpen(!userMenuOpen)}
+                      className="flex items-center space-x-1 focus:outline-none"
+                    >
+                      <span>{user?.name}</span>
+                      <FaUserCircle size={24} className="text-mpesa-green" />
+                    </button>
+                    
+                    {/* User dropdown */}
+                    {userMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-dark-bg-secondary rounded-md shadow-lg py-1 z-50">
+                        <Link
+                          to="/dashboard"
+                          className="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-dark-bg-primary"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          Dashboard
+                        </Link>
+                        <Link
+                          to="/profile"
+                          className="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-dark-bg-primary"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          Profile
+                        </Link>
+                        <Link
+                          to="/notifications"
+                          className="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-dark-bg-primary"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <div className="flex items-center">
+                            <FaBell className="mr-2" />
+                            Notifications
+                          </div>
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-dark-bg-primary"
+                        >
+                          <div className="flex items-center">
+                            <FaSignOutAlt className="mr-2" />
+                            Logout
+                          </div>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center space-x-2">
@@ -220,11 +238,31 @@ const MainLayout = ({ children }) => {
                     Dashboard
                   </Link>
                   <Link
+                    to="/discover"
+                    className="block py-2 hover:text-mpesa-green transition duration-200"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <FaSearch className="mr-2" />
+                      Discover
+                    </div>
+                  </Link>
+                  <Link
                     to="/profile"
                     className="block py-2 hover:text-mpesa-green transition duration-200"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Profile
+                  </Link>
+                  <Link
+                    to="/notifications"
+                    className="block py-2 hover:text-mpesa-green transition duration-200"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <FaBell className="mr-2" />
+                      Notifications
+                    </div>
                   </Link>
                   <button
                     onClick={handleLogout}
@@ -297,6 +335,19 @@ const MainLayout = ({ children }) => {
                     >
                       <FaThLarge className="flex-shrink-0" />
                       {!sidebarCollapsed && <span className="ml-3">Dashboard</span>}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
+                      to="/discover" 
+                      className={`flex items-center px-3 py-2 rounded-md transition-colors ${
+                        location.pathname === '/discover' 
+                          ? 'bg-mpesa-green/10 text-mpesa-green' 
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      <FaSearch className="flex-shrink-0" />
+                      {!sidebarCollapsed && <span className="ml-3">Discover</span>}
                     </Link>
                   </li>
                   <li>

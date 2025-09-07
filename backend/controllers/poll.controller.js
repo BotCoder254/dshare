@@ -1,5 +1,6 @@
 const Poll = require('../models/Poll.model');
 const User = require('../models/User.model');
+const { createNotification } = require('./notification.controller');
 
 // @desc    Create new poll
 // @route   POST /api/polls
@@ -31,6 +32,32 @@ exports.createPoll = async (req, res, next) => {
       allowGuestVoting: allowGuestVoting !== undefined ? allowGuestVoting : true,
       showResults: showResults || 'always'
     });
+    
+    // Create a system notification for the creator as confirmation
+    try {
+      await createNotification(
+        req.user.id,
+        'system',
+        'Poll Created Successfully',
+        `Your poll "${title}" has been created and is now ${privacy === 'public' ? 'available to the public' : 'available to those with access'}`,
+        poll._id
+      );
+      
+      // Send real-time notification via socket.io
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`user:${req.user.id}`).emit('new-notification', {
+          type: 'system',
+          title: 'Poll Created Successfully',
+          message: `Your poll "${title}" has been created and is now ${privacy === 'public' ? 'available to the public' : 'available to those with access'}`,
+          pollId: poll._id,
+          createdAt: new Date()
+        });
+      }
+    } catch (notificationError) {
+      console.error('Error creating notification:', notificationError);
+      // Continue even if notification fails
+    }
     
     res.status(201).json({
       success: true,
@@ -348,7 +375,52 @@ exports.votePoll = async (req, res, next) => {
     // Add voter to the poll
     poll.voters.push(voterEntry);
     
+    // Update total votes count
+    poll.totalVotes = (poll.totalVotes || 0) + 1;
+    
     await poll.save();
+    
+    // Get poll creator and send notification
+    if (poll.creator) {
+      try {
+        // Send notification to poll creator about new vote
+        await createNotification(
+          poll.creator,
+          'poll_vote',
+          'New Vote on Your Poll',
+          `Someone just voted on your poll: ${poll.title}`,
+          poll._id
+        );
+        
+        // Emit real-time notification via socket.io
+        const io = req.app.get('io');
+        if (io) {
+          // Emit to poll room for live updates
+          io.to(`poll:${poll._id}`).emit('poll-updated', {
+            pollId: poll._id,
+            action: 'vote',
+            poll: {
+              _id: poll._id,
+              title: poll.title,
+              options: poll.options,
+              totalVotes: poll.voters.length
+            }
+          });
+          
+          // Emit to poll creator's user room for notification
+          io.to(`user:${poll.creator}`).emit('new-notification', {
+            type: 'poll_vote',
+            title: 'New Vote on Your Poll',
+            message: `Someone just voted on your poll: ${poll.title}`,
+            pollId: poll._id,
+            createdAt: new Date()
+          });
+        }
+      } catch (notificationError) {
+        console.error('Error sending notification:', notificationError);
+        // Continue with the response even if notification fails
+      }
+    }
     
     res.status(200).json({
       success: true,

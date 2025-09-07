@@ -11,6 +11,28 @@ const PollSchema = new mongoose.Schema({
     type: String,
     maxlength: [500, 'Description cannot be more than 500 characters']
   },
+  tags: [{
+    type: String,
+    lowercase: true,
+    trim: true
+  }],
+  category: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
+  totalVotes: {
+    type: Number,
+    default: 0
+  },
+  viewCount: {
+    type: Number,
+    default: 0
+  },
+  shareCount: {
+    type: Number,
+    default: 0
+  },
   options: [{
     text: {
       type: String,
@@ -96,5 +118,20 @@ PollSchema.pre('save', function(next) {
   }
   next();
 });
+
+// Create text index for search
+PollSchema.index({ 
+  title: 'text', 
+  description: 'text',
+  tags: 'text'
+});
+
+// Index for filtering and sorting
+PollSchema.index({ privacy: 1 });
+PollSchema.index({ category: 1 });
+PollSchema.index({ createdAt: -1 });
+PollSchema.index({ totalVotes: -1 });
+PollSchema.index({ viewCount: -1 });
+PollSchema.index({ tags: 1 });
 
 module.exports = mongoose.model('Poll', PollSchema);

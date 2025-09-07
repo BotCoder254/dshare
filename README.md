@@ -11,6 +11,8 @@ A modern online polling and voting application built on the MERN stack (MongoDB,
 - **Multiple Voting Systems**: Single choice, multiple choice, and ranked voting
 - **Privacy Controls**: Make polls public, private, or password-protected
 - **User Authentication**: Register, login, or continue as guest
+- **Real-time Notifications**: Instant notifications for votes and poll updates
+- **Notification Center**: Track all activities with advanced filtering and snooze options
 - **Dark Mode**: Beautiful dark mode interface
 - **Mobile Responsive**: Works perfectly on all devices
 - **Open Source**: Free and open-source forever
@@ -28,6 +30,9 @@ A modern online polling and voting application built on the MERN stack (MongoDB,
 
 ### Backend
 - Node.js with Express
+- Socket.io for real-time updates and notifications
+- MongoDB with Mongoose
+- JWT Authentication
 - MongoDB with Mongoose
 - JWT for authentication
 - Bcrypt for password hashing

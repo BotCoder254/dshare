@@ -12,6 +12,11 @@ export const getPoll = async (idOrSlug) => {
   return response.data;
 };
 
+// Alias for getPoll - for better semantic clarity
+export const getPollById = async (idOrSlug) => {
+  return getPoll(idOrSlug);
+};
+
 // Create a new poll
 export const createPoll = async (pollData) => {
   const response = await api.post('/polls', pollData);

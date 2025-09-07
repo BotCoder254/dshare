@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FaPoll, FaVoteYea, FaChartBar, FaUserShield, FaGithub } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import Button from '../components/Button';
+import { useAuth } from '../contexts/AuthContext';
 
 // Animation variants
 const fadeIn = {
@@ -28,6 +29,9 @@ const staggerContainer = {
 };
 
 const Landing = () => {
+  const { isAuthenticated } = useAuth();
+  
+  // All hooks must be called before any conditional returns
   // Mock data for GitHub stars and contributors
   const [githubStats, setGithubStats] = useState({
     stars: '1.2k',
@@ -48,6 +52,11 @@ const Landing = () => {
   
   const [selectedOption, setSelectedOption] = useState(null);
   const [hasVoted, setHasVoted] = useState(false);
+  
+  // Redirect authenticated users to dashboard
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleVote = () => {
     if (selectedOption !== null) {
