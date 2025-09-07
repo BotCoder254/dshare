@@ -21,6 +21,8 @@ const PollDetail = lazy(() => import('./pages/PollDetail'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const DiscoverPage = lazy(() => import('./pages/DiscoverPage'));
 const ResultsPage = lazy(() => import('./pages/ResultsPage'));
+const EmbeddedPage = lazy(() => import('./pages/EmbeddedPage'));
+const EmbedPoll = lazy(() => import('./pages/EmbedPoll'));
 // Add more lazy-loaded pages here
 
 // Create Query Client
@@ -54,6 +56,7 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/guest-login" element={<GuestLogin />} />
               <Route path="/discover" element={<MainLayout><DiscoverPage /></MainLayout>} />
+              <Route path="/embed/:id" element={<EmbedPoll />} />
               
               {/* Protected Routes */}
               <Route element={<PrivateRoute />}>
@@ -61,6 +64,7 @@ function App() {
                 <Route path="/create" element={<CreatePoll />} />
                 <Route path="/my-polls" element={<div>My Polls Page</div>} />
                 <Route path="/results" element={<ResultsPage />} />
+                <Route path="/embedded" element={<EmbeddedPage />} />
                 <Route path="/profile" element={<div>Profile Page</div>} />
                 <Route path="/settings" element={<div>Settings Page</div>} />
                 <Route path="/polls/:id" element={<PollDetail />} />

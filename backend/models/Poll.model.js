@@ -33,6 +33,21 @@ const PollSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  embedCount: {
+    type: Number,
+    default: 0
+  },
+  embedToken: {
+    type: String
+  },
+  embedSources: [{
+    referrer: String,
+    url: String,
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   options: [{
     text: {
       type: String,

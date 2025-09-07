@@ -37,6 +37,7 @@ const pollRoutes = require('./routes/poll.routes');
 const userRoutes = require('./routes/user.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const searchRoutes = require('./routes/search.routes');
+const embedRoutes = require('./routes/embed.routes');
 
 // Use routes
 app.use('/api/auth', authRoutes);
@@ -44,6 +45,7 @@ app.use('/api/polls', pollRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/embed', embedRoutes);
 
 // Root route
 app.get('/', (req, res) => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FaSun, FaMoon, FaBars, FaTimes, FaUserCircle, FaPoll, FaSignOutAlt, FaGithub, 
   FaHome, FaPlus, FaList, FaChartBar, FaUser, FaCog, FaChevronLeft, FaChevronRight, 
-  FaThLarge, FaHistory, FaTrophy, FaInfoCircle, FaQuestionCircle, FaBell, FaSearch } from 'react-icons/fa';
+  FaThLarge, FaHistory, FaTrophy, FaInfoCircle, FaQuestionCircle, FaBell, FaSearch, FaCode } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -391,15 +391,15 @@ const MainLayout = ({ children }) => {
                   </li>
                   <li>
                     <Link 
-                      to="/history" 
+                      to="/embedded" 
                       className={`flex items-center px-3 py-2 rounded-md transition-colors ${
-                        location.pathname === '/history' 
+                        location.pathname === '/embedded' 
                           ? 'bg-mpesa-green/10 text-mpesa-green' 
                           : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                       }`}
                     >
-                      <FaHistory className="flex-shrink-0" />
-                      {!sidebarCollapsed && <span className="ml-3">Vote History</span>}
+                      <FaCode className="flex-shrink-0" />
+                      {!sidebarCollapsed && <span className="ml-3">Embed Polls</span>}
                     </Link>
                   </li>
                 </ul>
