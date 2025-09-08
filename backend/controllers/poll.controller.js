@@ -207,13 +207,28 @@ exports.votePoll = async (req, res, next) => {
       }
     }
     
+    // Check if user is the creator of the poll and trying to vote from the embed/preview
+    if (req.user && poll.creator.toString() === req.user.id && req.headers.referer && 
+       (req.headers.referer.includes('/embed/') || req.headers.referer.includes('/preview/'))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Poll creators cannot vote on their own polls in preview or embed mode'
+      });
+    }
+
     // Check if user has already voted
     const ipAddress = req.ip;
+    const deviceToken = req.body.deviceToken || req.cookies.deviceToken || null;
+    
     const hasVoted = poll.voters.some(voter => {
       // If user is logged in, check by user ID
       if (req.user) {
         return voter.user && voter.user.toString() === req.user.id;
-      } 
+      }
+      // Check by device token if available
+      if (deviceToken && voter.deviceToken === deviceToken) {
+        return true;
+      }
       // Otherwise check by IP address
       return voter.ipAddress === ipAddress;
     });
@@ -237,6 +252,7 @@ exports.votePoll = async (req, res, next) => {
     const voterEntry = {
       user: req.user ? req.user.id : null,
       ipAddress,
+      deviceToken,
       choices: [],
       voteData: req.body
     };
@@ -422,10 +438,21 @@ exports.votePoll = async (req, res, next) => {
       }
     }
     
+    // Set device token as a cookie if provided and not already set
+    if (voterEntry.deviceToken && !req.cookies.deviceToken) {
+      res.cookie('deviceToken', voterEntry.deviceToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+        sameSite: 'lax'
+      });
+    }
+    
     res.status(200).json({
       success: true,
       message: 'Vote recorded successfully',
-      data: poll
+      data: poll,
+      deviceToken: voterEntry.deviceToken
     });
   } catch (error) {
     next(error);

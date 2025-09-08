@@ -8,9 +8,12 @@ const {
   getMyPolls
 } = require('../controllers/poll.controller');
 const { getPollHistory } = require('../controllers/getPollHistory');
+const { updatePoll } = require('../controllers/updatePoll.controller');
+const { getPollVersions, rollbackVersion } = require('../controllers/pollVersion.controller');
 const { incrementShareCount, incrementViewCount } = require('../controllers/search.controller');
 
 const { protect, optionalAuth } = require('../middleware/auth.middleware');
+const socketMiddleware = require('../middleware/socket.middleware');
 
 const router = express.Router();
 
@@ -23,8 +26,13 @@ router.post('/:id/share', incrementShareCount);
 router.post('/:id/view', incrementViewCount);
 
 // Protected routes
-router.post('/', protect, createPoll);
-router.delete('/:id', protect, deletePoll);
+router.post('/', protect, socketMiddleware, createPoll);
+router.put('/:id', protect, socketMiddleware, updatePoll);
+router.delete('/:id', protect, socketMiddleware, deletePoll);
 router.get('/me/polls', protect, getMyPolls);
+
+// Version control routes
+router.get('/:id/versions', protect, getPollVersions);
+router.post('/:id/rollback/:versionIndex', protect, socketMiddleware, rollbackVersion);
 
 module.exports = router;

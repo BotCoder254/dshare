@@ -236,9 +236,13 @@ const PollLineChart = ({ poll, historyData }) => {
   }
   
   // Calculate max value for scaling
-  const maxValue = Math.max(...historyData.flatMap(point => 
-    Object.values(point.votes).map(Number)
-  ));
+  const maxValue = historyData && historyData.length > 0 
+    ? Math.max(...historyData.flatMap(point => 
+        point.votes && typeof point.votes === 'object' 
+          ? Object.values(point.votes).map(Number) 
+          : point.options ? point.options.map(opt => Number(opt.votes)) : [0]
+      ))
+    : 0;
   
   // Get option names and prepare colors
   const options = poll.options;
@@ -263,10 +267,19 @@ const PollLineChart = ({ poll, historyData }) => {
   const createLinePath = (optionId) => {
     const points = historyData.map((point, i) => {
       // Calculate x position based on timestamp
-      const x = padding + ((point.timestamp - minTime) / (maxTime - minTime)) * chartWidth;
+      const timestamp = typeof point.timestamp === 'string' ? new Date(point.timestamp).getTime() : point.timestamp;
+      const x = padding + ((timestamp - minTime) / (maxTime - minTime)) * chartWidth;
+      
       // Calculate y position based on vote count
-      const voteCount = point.votes[optionId] || 0;
-      const y = height - padding - ((voteCount / maxValue) * chartHeight) || height - padding;
+      let voteCount = 0;
+      if (point.votes && typeof point.votes === 'object') {
+        voteCount = point.votes[optionId] || 0;
+      } else if (point.options) {
+        const option = point.options.find(opt => opt._id === optionId || opt._id.toString() === optionId);
+        voteCount = option ? option.votes : 0;
+      }
+      
+      const y = maxValue > 0 ? height - padding - ((voteCount / maxValue) * chartHeight) : height - padding;
       return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
     }).join(' ');
     return points;
@@ -300,10 +313,21 @@ const PollLineChart = ({ poll, historyData }) => {
           
           {/* Draw dots for the last data point of each line */}
           {options.map((option, i) => {
+            if (!historyData || historyData.length === 0) return null;
+            
             const lastPoint = historyData[historyData.length - 1];
-            const x = padding + ((lastPoint.timestamp - minTime) / (maxTime - minTime)) * chartWidth;
-            const voteCount = lastPoint.votes[option._id || i.toString()] || 0;
-            const y = height - padding - ((voteCount / maxValue) * chartHeight) || height - padding;
+            const timestamp = typeof lastPoint.timestamp === 'string' ? new Date(lastPoint.timestamp).getTime() : lastPoint.timestamp;
+            const x = padding + ((timestamp - minTime) / (maxTime - minTime)) * chartWidth;
+            
+            let voteCount = 0;
+            if (lastPoint.votes && typeof lastPoint.votes === 'object') {
+              voteCount = lastPoint.votes[option._id || i.toString()] || 0;
+            } else if (lastPoint.options) {
+              const opt = lastPoint.options.find(o => o._id === option._id || o._id.toString() === option._id);
+              voteCount = opt ? opt.votes : 0;
+            }
+            
+            const y = maxValue > 0 ? height - padding - ((voteCount / maxValue) * chartHeight) : height - padding;
             
             return (
               <circle 

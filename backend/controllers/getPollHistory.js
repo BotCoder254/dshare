@@ -1,3 +1,5 @@
+const Poll = require('../models/Poll.model');
+
 // Function to get historical data for a poll
 // This will be added to the poll.controller.js file
 exports.getPollHistory = async (req, res, next) => {

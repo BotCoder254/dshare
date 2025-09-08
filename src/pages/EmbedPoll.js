@@ -19,6 +19,9 @@ const EmbedPoll = () => {
   const [realTimeData, setRealTimeData] = useState(null);
   const socketRef = useRef(null);
   
+  // Check if in preview mode
+  const isPreviewMode = window.location.pathname.includes('/preview/');
+  
   // Check if user has already voted
   useEffect(() => {
     const hasVoted = localStorage.getItem(`voted-${id}`);
@@ -81,7 +84,13 @@ const EmbedPoll = () => {
     
     // Check for dark mode preference from parent
     try {
-      // Listen for messages from parent frame
+      // First check for system dark mode preference
+      const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDarkMode) {
+        document.documentElement.classList.add('dark');
+      }
+      
+      // Then listen for messages from parent frame
       window.addEventListener('message', (event) => {
         if (event.data === 'enable-dark-mode') {
           document.documentElement.classList.add('dark');
@@ -107,6 +116,18 @@ const EmbedPoll = () => {
     };
   }, []);
   
+  // Generate or get device token for vote tracking
+  const getDeviceToken = () => {
+    let deviceToken = localStorage.getItem('dshare-device-token');
+    if (!deviceToken) {
+      // Generate a random token for this device
+      deviceToken = 'dt-' + Math.random().toString(36).substring(2, 15) + 
+                    Math.random().toString(36).substring(2, 15);
+      localStorage.setItem('dshare-device-token', deviceToken);
+    }
+    return deviceToken;
+  };
+  
   // Handle voting
   const handleVote = async () => {
     if (!selectedOption) return;
@@ -115,7 +136,12 @@ const EmbedPoll = () => {
     setError(null);
     
     try {
-      const response = await votePoll(id, { optionId: selectedOption });
+      const deviceToken = getDeviceToken();
+      const response = await votePoll(id, { 
+        optionId: selectedOption, 
+        deviceToken,
+        isEmbedded: true 
+      });
       
       if (response.success) {
         setVoted(true);
@@ -234,23 +260,31 @@ const EmbedPoll = () => {
               
               <button
                 onClick={handleVote}
-                disabled={!selectedOption || isVoting}
+                disabled={!selectedOption || isVoting || isPreviewMode}
                 className={`px-4 py-1.5 text-sm font-medium rounded-md bg-mpesa-green text-white transition duration-200 ${
-                  !selectedOption || isVoting
+                  !selectedOption || isVoting || isPreviewMode
                     ? 'opacity-70 cursor-not-allowed'
                     : 'hover:bg-mpesa-dark'
                 }`}
               >
-                {isVoting ? 'Voting...' : 'Vote'}
+                {isVoting ? 'Voting...' : isPreviewMode ? 'Preview Only' : 'Vote'}
               </button>
             </div>
             
-            {!voted && (
+            {!voted && !isPreviewMode && (
               <button
                 onClick={() => setShowResults(true)}
                 className="w-full mt-3 text-center text-sm text-gray-500 dark:text-gray-400 hover:text-mpesa-green hover:underline"
               >
                 Show Results Without Voting
+              </button>
+            )}
+            {isPreviewMode && !showResults && (
+              <button
+                onClick={() => setShowResults(true)}
+                className="w-full mt-3 text-center text-sm text-gray-500 dark:text-gray-400 hover:text-mpesa-green hover:underline"
+              >
+                Show Results Preview
               </button>
             )}
           </motion.div>
@@ -313,16 +347,18 @@ const EmbedPoll = () => {
       </AnimatePresence>
       
       {/* Footer with branding */}
-      <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-        <a 
-          href={`${window.location.origin}/poll/${pollData._id}`}
-          target="_blank"
-          rel="noreferrer"
-          className="text-mpesa-green hover:underline"
-        >
-          Powered by DShare
-        </a>
-      </div>
+      {!isPreviewMode && (
+        <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
+          <a 
+            href={`${window.location.origin.replace(/\/embed$/, '')}/poll/${pollData._id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-mpesa-green hover:underline"
+          >
+            View on DShare
+          </a>
+        </div>
+      )}
     </div>
   );
 };

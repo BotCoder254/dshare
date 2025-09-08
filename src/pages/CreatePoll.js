@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
-import { FaArrowLeft, FaArrowRight, FaCheck, FaTimes, FaPlus, FaTrash, FaGripLines } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { FaArrowLeft, FaArrowRight, FaCheck, FaTimes, FaPlus, FaTrash, FaGripLines, FaHistory, FaClock } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createPoll } from '../services/poll.service';
+import { createPoll, getPoll, updatePoll } from '../services/poll.service';
+import VersionHistoryModal from '../components/VersionHistoryModal';
 
 // Poll option types
 const POLL_TYPES = [
@@ -28,7 +29,11 @@ const RESULT_OPTIONS = [
 
 const CreatePoll = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const [step, setStep] = useState(1);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [hasVotes, setHasVotes] = useState(false);
   const [formValues, setFormValues] = useState({
     title: '',
     description: '',
@@ -39,10 +44,43 @@ const CreatePoll = () => {
     expiresAt: '',
     allowGuestVoting: true,
     showResults: 'always',
+    closePollNow: false, // New field for immediate poll closing
   });
   
   // Validation state
   const [errors, setErrors] = useState({});
+  
+  // Fetch poll data if in edit mode
+  const { data: pollData, isLoading } = useQuery({
+    queryKey: ['poll', id],
+    queryFn: () => getPoll(id),
+    enabled: !!id, // Only run the query if we have an ID (edit mode)
+    onSuccess: (data) => {
+      if (data && data.data) {
+        const poll = data.data;
+        setIsEditMode(true);
+        // Check if the poll has votes
+        setHasVotes(poll.voters && poll.voters.length > 0);
+        
+        setFormValues({
+          title: poll.title || '',
+          description: poll.description || '',
+          options: poll.options || [{ text: '' }, { text: '' }],
+          votingSystem: poll.votingSystem || 'single-choice',
+          privacy: poll.privacy || 'public',
+          password: poll.password || '',
+          expiresAt: poll.expiresAt ? new Date(poll.expiresAt).toISOString().slice(0, 16) : '',
+          allowGuestVoting: poll.allowGuestVoting !== undefined ? poll.allowGuestVoting : true,
+          showResults: poll.showResults || 'always',
+          closePollNow: false, // Default to not closing the poll
+        });
+      }
+    },
+    onError: (error) => {
+      console.error('Failed to fetch poll:', error);
+      navigate('/dashboard');
+    }
+  });
   
   // Create poll mutation
   const createPollMutation = useMutation({
@@ -55,10 +93,29 @@ const CreatePoll = () => {
       console.error('Failed to create poll:', error);
     }
   });
+  
+  // Update poll mutation
+  const updatePollMutation = useMutation({
+    mutationFn: (data) => updatePoll(id, data),
+    onSuccess: () => {
+      // Navigate to the poll detail page
+      navigate(`/polls/${id}`);
+    },
+    onError: (error) => {
+      console.error('Failed to update poll:', error);
+    }
+  });
 
   // Handle input changes
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
+    // Don't allow changes to options or voting system if poll has votes in edit mode
+    if (isEditMode && hasVotes && 
+        (name === 'votingSystem' || name.startsWith('options['))) {
+      return;
+    }
+    
     setFormValues(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -89,7 +146,16 @@ const CreatePoll = () => {
   // Handle option input change
   const handleOptionChange = (index, value) => {
     const newOptions = [...formValues.options];
-    newOptions[index].text = value;
+    
+    // Make sure the option is an object with a text property
+    if (typeof newOptions[index] === 'string') {
+      newOptions[index] = { text: value };
+    } else if (typeof newOptions[index] === 'object') {
+      newOptions[index] = { ...newOptions[index], text: value };
+    } else {
+      newOptions[index] = { text: value };
+    }
+    
     setFormValues(prev => ({
       ...prev,
       options: newOptions
@@ -175,10 +241,48 @@ const CreatePoll = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateCurrentStep()) {
-      createPollMutation.mutate({
-        ...formValues,
-        options: formValues.options.map(option => option.text)
-      });
+      let pollData;
+      
+      if (isEditMode) {
+        // For edit mode, we need to handle the data differently
+        pollData = { ...formValues };
+        
+        // Handle options specially
+        if (hasVotes) {
+          // When poll has votes, we shouldn't be changing options
+          delete pollData.options;
+        } else {
+          // Otherwise, format options correctly
+          pollData.options = formValues.options.map(option => {
+            return typeof option === 'object' ? option : { text: option, votes: 0 };
+          });
+        }
+      } else {
+        // For new polls, just use the text
+        pollData = {
+          ...formValues,
+          options: formValues.options.map(option => 
+            typeof option === 'object' ? option.text : option
+          )
+        };
+      }
+      
+      // If close poll now is checked, set expiry date to now
+      if (formValues.closePollNow) {
+        pollData = {
+          ...pollData,
+          expiresAt: new Date().toISOString()
+        };
+      }
+      
+      // Remove closePollNow as it's not needed in the actual API call
+      delete pollData.closePollNow;
+      
+      if (isEditMode) {
+        updatePollMutation.mutate(pollData);
+      } else {
+        createPollMutation.mutate(pollData);
+      }
     }
   };
   
@@ -273,15 +377,20 @@ const CreatePoll = () => {
           <div className="flex justify-between items-center mb-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Poll Options*
+              {isEditMode && hasVotes && (
+                <span className="ml-2 text-xs text-red-500">(Cannot change options once voting has started)</span>
+              )}
             </label>
-            <button
-              type="button"
-              onClick={addOption}
-              className="flex items-center text-sm text-mpesa-green hover:text-mpesa-dark"
-            >
-              <FaPlus size={12} className="mr-1" />
-              Add Option
-            </button>
+            {(!isEditMode || !hasVotes) && (
+              <button
+                type="button"
+                onClick={addOption}
+                className="flex items-center text-sm text-mpesa-green hover:text-mpesa-dark"
+              >
+                <FaPlus size={12} className="mr-1" />
+                Add Option
+              </button>
+            )}
           </div>
           
           {errors.optionsLength && (
@@ -299,14 +408,15 @@ const CreatePoll = () => {
                 </div>
                 <input
                   type="text"
-                  value={option.text}
+                  value={typeof option === 'string' ? option : (option.text || '')}
                   onChange={(e) => handleOptionChange(index, e.target.value)}
                   placeholder={`Option ${index + 1}`}
                   className={`flex-1 px-4 py-2 border rounded-md focus:ring-2 focus:ring-mpesa-green focus:border-mpesa-green dark:bg-dark-bg-secondary dark:border-gray-600 ${
                     errors.options?.[index] ? 'border-red-500' : 'border-gray-300'
                   }`}
+                  disabled={isEditMode && hasVotes}
                 />
-                {formValues.options.length > 2 && (
+                {formValues.options.length > 2 && (!isEditMode || !hasVotes) && (
                   <button
                     type="button"
                     onClick={() => removeOption(index)}
@@ -321,18 +431,21 @@ const CreatePoll = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
             Voting System
-          </label>
+            {isEditMode && hasVotes && (
+              <span className="ml-2 text-xs text-red-500">(Cannot change voting system once voting has started)</span>
+            )}
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {POLL_TYPES.map((type) => (
               <label 
                 key={type.id}
-                className={`block p-4 border rounded-lg cursor-pointer transition-all ${
+                className={`block p-4 border rounded-lg transition-all ${
                   formValues.votingSystem === type.id
                     ? 'border-mpesa-green bg-mpesa-green/10 dark:bg-mpesa-green/20'
                     : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
+                } ${isEditMode && hasVotes ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 <div className="flex items-center mb-2">
                   <input
@@ -341,6 +454,7 @@ const CreatePoll = () => {
                     value={type.id}
                     checked={formValues.votingSystem === type.id}
                     onChange={handleInputChange}
+                    disabled={isEditMode && hasVotes}
                     className="w-4 h-4 text-mpesa-green"
                   />
                   <span className="ml-2 font-medium">{type.name}</span>
@@ -428,11 +542,29 @@ const CreatePoll = () => {
             value={formValues.expiresAt}
             onChange={handleInputChange}
             min={new Date().toISOString().slice(0, 16)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-mpesa-green focus:border-mpesa-green dark:bg-dark-bg-secondary dark:border-gray-600"
+            className={`w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-mpesa-green focus:border-mpesa-green dark:bg-dark-bg-secondary dark:border-gray-600 ${isEditMode && hasVotes && formValues.closePollNow ? 'opacity-50' : ''}`}
+            disabled={isEditMode && hasVotes && formValues.closePollNow}
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             If set, voting will automatically close at this time
           </p>
+          
+          {isEditMode && hasVotes && (
+            <div className="mt-4 flex items-center">
+              <input
+                type="checkbox"
+                id="closePollNow"
+                name="closePollNow"
+                checked={formValues.closePollNow}
+                onChange={handleInputChange}
+                className="h-4 w-4 text-mpesa-green border-gray-300 rounded focus:ring-mpesa-green"
+              />
+              <label htmlFor="closePollNow" className="ml-2 block text-sm text-red-600 dark:text-red-400 font-medium">
+                Close poll immediately
+              </label>
+              <FaClock className="ml-2 text-red-600 dark:text-red-400" />
+            </div>
+          )}
         </div>
         
         <div>
@@ -609,23 +741,37 @@ const CreatePoll = () => {
         ) : (
           <button
             type="submit"
-            disabled={createPollMutation.isPending}
+            disabled={isEditMode ? updatePollMutation.isPending : createPollMutation.isPending}
             className={`flex items-center px-6 py-2 bg-mpesa-green text-white rounded-md shadow-sm text-sm font-medium ${
-              createPollMutation.isPending 
+              (isEditMode ? updatePollMutation.isPending : createPollMutation.isPending) 
                 ? 'opacity-70 cursor-not-allowed' 
                 : 'hover:bg-mpesa-dark'
             }`}
           >
-            {createPollMutation.isPending ? (
-              <>
-                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                Creating...
-              </>
+            {isEditMode ? (
+              updatePollMutation.isPending ? (
+                <>
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  Updating...
+                </>
+              ) : (
+                <>
+                  Update Poll
+                  <FaCheck className="ml-2" />
+                </>
+              )
             ) : (
-              <>
-                Publish Poll
-                <FaCheck className="ml-2" />
-              </>
+              createPollMutation.isPending ? (
+                <>
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  Creating...
+                </>
+              ) : (
+                <>
+                  Publish Poll
+                  <FaCheck className="ml-2" />
+                </>
+              )
             )}
           </button>
         )}
@@ -633,6 +779,16 @@ const CreatePoll = () => {
     );
   };
   
+  // If we're in edit mode and still loading the data
+  if (isEditMode && isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-dark-bg-secondary shadow-md rounded-lg flex flex-col items-center justify-center min-h-[300px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mpesa-green mb-4"></div>
+        <p className="text-gray-600 dark:text-gray-300">Loading poll data...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Step indicators */}
@@ -640,12 +796,26 @@ const CreatePoll = () => {
       
       {/* Main form */}
       <form onSubmit={handleSubmit} className="bg-white dark:bg-dark-bg-secondary shadow-md rounded-lg p-6">
-        <h2 className="text-2xl font-bold mb-6 pb-3 border-b dark:border-gray-700">
-          {step === 1 && 'Basic Information'}
-          {step === 2 && 'Poll Options'}
-          {step === 3 && 'Advanced Settings'}
-          {step === 4 && 'Review & Publish'}
-        </h2>
+        <div className="flex justify-between items-center mb-6 pb-3 border-b dark:border-gray-700">
+          <h2 className="text-2xl font-bold">
+            {isEditMode ? 'Edit Poll' : 'Create Poll'}: 
+            {step === 1 && ' Basic Information'}
+            {step === 2 && ' Poll Options'}
+            {step === 3 && ' Advanced Settings'}
+            {step === 4 && ' Review & ' + (isEditMode ? 'Update' : 'Publish')}
+          </h2>
+          
+          {isEditMode && (
+            <button
+              type="button"
+              onClick={() => setShowVersionHistory(true)}
+              className="flex items-center px-3 py-1.5 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-200 rounded-md text-sm"
+            >
+              <FaHistory className="mr-1" size={14} />
+              Version History
+            </button>
+          )}
+        </div>
         
         {/* Step content */}
         <AnimatePresence mode="wait">
@@ -663,6 +833,13 @@ const CreatePoll = () => {
         {/* Navigation buttons */}
         {renderNavButtons()}
       </form>
+      
+      {/* Version History Modal */}
+      <VersionHistoryModal 
+        isOpen={showVersionHistory}
+        onClose={() => setShowVersionHistory(false)}
+        pollId={id}
+      />
     </div>
   );
 };

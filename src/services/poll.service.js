@@ -54,3 +54,21 @@ export const getPollHistory = async (pollId, timeRange = '24h') => {
   const response = await api.get(`/polls/${pollId}/history?timeRange=${timeRange}`);
   return response.data;
 };
+
+// Update an existing poll
+export const updatePoll = async (pollId, pollData) => {
+  const response = await api.put(`/polls/${pollId}`, pollData);
+  return response.data;
+};
+
+// Get poll version history
+export const getPollVersions = async (pollId) => {
+  const response = await api.get(`/polls/${pollId}/versions`);
+  return response.data;
+};
+
+// Rollback to a previous version
+export const rollbackVersion = async (pollId, versionIndex) => {
+  const response = await api.post(`/polls/${pollId}/rollback/${versionIndex}`);
+  return response.data;
+};

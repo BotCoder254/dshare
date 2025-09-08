@@ -68,6 +68,7 @@ function App() {
                 <Route path="/profile" element={<div>Profile Page</div>} />
                 <Route path="/settings" element={<div>Settings Page</div>} />
                 <Route path="/polls/:id" element={<PollDetail />} />
+                <Route path="/polls/:id/edit" element={<CreatePoll />} />
                 <Route path="/notifications" element={<Notifications />} />
               </Route>
               

@@ -32,7 +32,8 @@ const Dashboard = () => {
     data: pollsData,
     isLoading,
     isError,
-    error
+    error,
+    refetch
   } = useQuery({
     queryKey: ['polls', sortBy, filter],
     queryFn: () => getPolls(1, 12, filter === 'expired'),
@@ -86,7 +87,11 @@ const Dashboard = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {pollsData.data.map(poll => (
-          <PollCard key={poll._id} poll={poll} />
+          <PollCard 
+            key={poll._id} 
+            poll={poll} 
+            refetch={refetch} 
+          />
         ))}
       </div>
     );

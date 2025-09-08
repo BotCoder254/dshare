@@ -31,6 +31,10 @@ app.use(cors({
   credentials: true
 }));
 
+// Add embed security middleware
+const embedSecurityMiddleware = require('./middleware/embedSecurity.middleware');
+app.use(embedSecurityMiddleware);
+
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const pollRoutes = require('./routes/poll.routes');

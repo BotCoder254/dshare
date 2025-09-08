@@ -100,6 +100,7 @@ const PollSchema = new mongoose.Schema({
       default: Date.now
     },
     ipAddress: String,
+    deviceToken: String, // For tracking unique devices in embedded polls
     // For multiple-choice, ranked-choice, and score voting
     choices: [{
       option: {
@@ -117,6 +118,33 @@ const PollSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  updatedAt: {
+    type: Date
+  },
+  isEdited: {
+    type: Boolean,
+    default: false
+  },
+  versions: [{
+    title: String,
+    description: String,
+    options: [{
+      text: String,
+      votes: Number
+    }],
+    privacy: String,
+    expiresAt: Date,
+    allowGuestVoting: Boolean,
+    showResults: String,
+    versionDate: {
+      type: Date,
+      default: Date.now
+    },
+    editorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  }],
   slug: {
     type: String,
     unique: true
